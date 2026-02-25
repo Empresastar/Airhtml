@@ -1,0 +1,133 @@
+# Air<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATA ENGINE v10.1 // CORE</title>
+    <style>
+        :root { --neon: #0f8; --bg: #080808; --panel: #121212; --border: #222; }
+        body { background: var(--bg); color: #eee; font-family: 'Inter', sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 1100px; margin: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        .header-status { font-size: 10px; color: var(--neon); letter-spacing: 2px; text-transform: uppercase; }
+        
+        input { 
+            width: 100%; background: var(--panel); border: 1px solid var(--border); 
+            color: var(--neon); padding: 20px; border-radius: 12px; font-size: 16px;
+            outline: none; transition: 0.2s; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--neon); box-shadow: 0 0 20px rgba(0, 255, 136, 0.1); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; height: 500px; display: flex; flex-direction: column; position: relative; }
+        .box-h { padding: 12px; font-size: 11px; background: #1a1a1a; border-bottom: 1px solid var(--border); color: var(--neon); font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        
+        pre { flex: 1; margin: 0; padding: 15px; overflow: auto; font-size: 13px; line-height: 1.5; color: #999; white-space: pre-wrap; word-break: break-all; }
+
+        .btn-main { 
+            background: var(--neon); color: #000; padding: 18px; border: none; 
+            border-radius: 12px; font-weight: 900; cursor: pointer; transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-main:hover { transform: scale(1.01); filter: brightness(1.1); }
+
+        /* Botão de Copiar Especial */
+        .btn-copy {
+            background: #1a1a1a; color: var(--neon); border: 1px solid var(--neon);
+            padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 10px;
+            transition: 0.2s;
+        }
+        .btn-copy:hover { background: var(--neon); color: #000; }
+
+        @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-status">SYSTEM_ACTIVE // V10.1_STABLE</div>
+    
+    <input type="text" id="urlInput" placeholder="COLE A URL AQUI (HTTPS)...">
+    
+    <button class="btn-main" onclick="startEngine()">EXECUTAR EXTRAÇÃO E GERAR PROMPT</button>
+
+    <div class="grid">
+        <div class="box">
+            <div class="box-h">DADOS_BRUTOS</div>
+            <pre id="outputRaw">// Aguardando comando...</pre>
+        </div>
+        <div class="box">
+            <div class="box-h">
+                PROMPT PARA IA
+                <button class="btn-copy" onclick="copyPrompt()">COPIAR PROMPT</button>
+            </div>
+            <pre id="outputPrompt">// O prompt aparecerá aqui...</pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function startEngine() {
+        const url = document.getElementById('urlInput').value.trim();
+        const raw = document.getElementById('outputRaw');
+        const prompt = document.getElementById('outputPrompt');
+
+        if(!url) return alert("Por favor, insira uma URL.");
+        raw.innerText = ">> PROCESSANDO...";
+
+        try {
+            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            const data = await res.json();
+            const html = data.contents;
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Limpeza rápida
+            doc.querySelectorAll('script, style, iframe').forEach(n => n.remove());
+            
+            const cleanText = doc.body.innerText.replace(/\s+/g, ' ').trim().substring(0, 2000);
+            raw.innerText = cleanText;
+
+            // Prompt otimizado para clonagem visual/estética
+            const finalPrompt = `Aja como um desenvolvedor Full Stack experiente. 
+Crie um aplicativo web de página única (Single Page App) inspirado no conteúdo e estrutura deste site: ${url}
+
+--- CONTEXTO EXTRAÍDO ---
+${cleanText}
+---
+
+INSTRUÇÕES DE CÓDIGO:
+1. Use HTML5, CSS moderno (Tailwind) e JavaScript Vanilla.
+2. O design deve ser mobile-first, com cara de aplicativo nativo.
+3. Inclua navegação, botões de ação e um layout escuro (dark mode).
+4. Me entregue o código completo num bloco único.`;
+
+            prompt.innerText = finalPrompt;
+
+        } catch (e) {
+            raw.innerText = "ERRO: Verifique a URL ou a conexão.";
+        }
+    }
+
+    function copyPrompt() {
+        const text = document.getElementById('outputPrompt').innerText;
+        if(text.includes("// O prompt")) return; // Não copia o texto inicial
+        
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelector('.btn-copy');
+            btn.innerText = "COPIADO!";
+            btn.style.background = "#0f8";
+            btn.style.color = "#000";
+            
+            setTimeout(() => {
+                btn.innerText = "COPIAR PROMPT";
+                btn.style.background = "#1a1a1a";
+                btn.style.color = "#0f8";
+            }, 2000);
+        });
+    }
+</script>
+</body>
+</html>
+                         html
