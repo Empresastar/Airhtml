@@ -11,79 +11,56 @@
         body { background: #020617; color: white; font-family: 'Outfit', sans-serif; overflow: hidden; }
         .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; }
         .active { display: flex; }
-        .game-card { transition: all 0.3s ease; border: 4px solid #1e293b; }
-        .game-card.selected { border-color: #fbbf24; transform: scale(1.1); }
-        /* Dino Game */
-        #dino-box { position: relative; width: 800px; height: 200px; border-bottom: 4px solid #334155; overflow: hidden; background: #f8fafc; color: #1e293b; }
-        #dino { position: absolute; bottom: 0; left: 50px; font-size: 40px; transition: bottom 0.3s; }
-        .cactus { position: absolute; bottom: 0; right: -50px; font-size: 30px; }
+        #dino-box { position: relative; width: 800px; height: 200px; border-bottom: 4px solid #334155; overflow: hidden; background: #f8fafc; }
+        #dino { position: absolute; bottom: 0; left: 50px; font-size: 40px; transition: bottom 0.25s; color: #1e293b; }
+        .cactus { position: absolute; bottom: 0; right: -50px; font-size: 30px; color: #16a34a; }
     </style>
 </head>
 <body>
 
     <div id="scr-login" class="screen active">
         <h1 class="text-5xl font-black text-amber-500 mb-8 italic">SPARK CONSOLE</h1>
-        <div class="bg-slate-900 p-10 rounded-[3rem] border-2 border-slate-800 text-center">
-            <p class="text-slate-500 font-bold mb-2">CÓDIGO DE ACESSO</p>
-            <div id="pin-display" class="text-7xl font-black text-white italic tracking-tighter">----</div>
-        </div>
+        <div id="pin-display" class="text-7xl font-black text-white bg-slate-900 p-8 rounded-3xl border-2 border-slate-700">----</div>
     </div>
 
     <div id="scr-hub" class="screen bg-slate-900">
         <h2 class="text-3xl font-black mb-16 uppercase italic">Menu de Jogos</h2>
         <div class="flex space-x-10">
-            <div id="g-0" class="game-card selected bg-slate-800 p-10 rounded-[2.5rem] text-center w-64">
+            <div id="g-0" class="game-card bg-slate-800 p-10 rounded-[2.5rem] text-center w-64 border-4 border-amber-500">
                 <i class="fas fa-dragon text-6xl text-green-500 mb-4"></i>
-                <h3 class="font-black text-white">DINO RUN</h3>
-            </div>
-            <div id="g-1" class="game-card bg-slate-800 p-10 rounded-[2.5rem] text-center w-64 opacity-50">
-                <i class="fas fa-rocket text-6xl text-blue-500 mb-4"></i>
-                <h3 class="font-black text-white">SPACE WAR</h3>
+                <h3 class="font-black">DINO RUN</h3>
             </div>
         </div>
     </div>
 
-    <div id="scr-dino" class="screen bg-slate-100 text-slate-900">
-        <div class="absolute top-10 right-10 text-3xl font-black">PONTOS: <span id="score">0</span></div>
+    <div id="scr-dino" class="screen bg-white">
+        <div class="absolute top-10 right-10 text-3xl font-black text-slate-900">SCORE: <span id="score">0</span></div>
         <div id="dino-box">
             <div id="dino"><i class="fas fa-dragon"></i></div>
-        </div>
-        <div id="game-over" class="hidden absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white z-50">
-            <h2 class="text-6xl font-black mb-4">GAME OVER</h2>
-            <p>Pressione START no celular para reiniciar</p>
         </div>
     </div>
 
     <script>
         const pin = Math.floor(1000 + Math.random() * 9000).toString();
         const peer = new Peer('spark-hub-' + pin);
-        let conn, menuIndex = 0, score = 0, gameActive = false, isJumping = false;
+        let conn, score = 0, gameActive = false, isJumping = false;
 
         peer.on('open', () => document.getElementById('pin-display').innerText = pin);
-
         peer.on('connection', c => {
             conn = c; setScreen('scr-hub');
             conn.on('data', data => {
-                if(data.type === 'NAV') handleNav(data.dir);
                 if(data.type === 'START') startGame();
                 if(data.type === 'BACK') backToMenu();
                 if(data.type === 'ACTION' && data.cmd === 'jump') jump();
             });
         });
 
-        function handleNav(dir) {
-            menuIndex = dir === 'right' ? 1 : 0;
-            document.getElementById('g-0').className = `game-card ${menuIndex === 0 ? 'selected' : 'opacity-50'} bg-slate-800 p-10 rounded-[2.5rem] text-center w-64`;
-            document.getElementById('g-1').className = `game-card ${menuIndex === 1 ? 'selected' : 'opacity-50'} bg-slate-800 p-10 rounded-[2.5rem] text-center w-64`;
-        }
-
         function startGame() {
             score = 0; document.getElementById('score').innerText = '0';
-            document.getElementById('game-over').classList.add('hidden');
-            const game = menuIndex === 0 ? 'DINO' : 'SPACE';
-            setScreen('scr-' + game.toLowerCase());
-            conn.send({ type: 'INIT_GAME', game: game });
-            if(game === 'DINO') startDinoLoop();
+            setScreen('scr-dino');
+            gameActive = true;
+            conn.send({ type: 'INIT_GAME', game: 'DINO' });
+            startDinoLoop();
         }
 
         function backToMenu() {
@@ -101,42 +78,33 @@
         }
 
         function startDinoLoop() {
-            gameActive = true;
-            const container = document.getElementById('dino-box');
-            
-            const mainLoop = setInterval(() => {
-                if(!gameActive) { clearInterval(mainLoop); return; }
-                score++;
-                document.getElementById('score').innerText = score;
+            const loop = setInterval(() => {
+                if(!gameActive) { clearInterval(loop); return; }
+                score++; document.getElementById('score').innerText = score;
                 spawnCactus();
-            }, 1500);
+            }, 1800);
         }
 
         function spawnCactus() {
             const cactus = document.createElement('div');
             cactus.className = 'cactus';
-            cactus.innerHTML = '<i class="fas fa-seedling text-green-600"></i>';
+            cactus.innerHTML = '<i class="fas fa-seedling"></i>';
             document.getElementById('dino-box').appendChild(cactus);
-            
             let pos = -50;
             const move = setInterval(() => {
                 if(!gameActive) { clearInterval(move); cactus.remove(); return; }
-                pos += 8;
-                cactus.style.right = pos + 'px';
-
-                // Colisão Simples
-                const dino = document.getElementById('dino');
-                const dRect = dino.getBoundingClientRect();
+                pos += 10; cactus.style.right = pos + 'px';
+                
+                const dRect = document.getElementById('dino').getBoundingClientRect();
                 const cRect = cactus.getBoundingClientRect();
 
                 if (dRect.right > cRect.left && dRect.left < cRect.right && dRect.bottom > cRect.top) {
                     gameActive = false;
-                    document.getElementById('game-over').classList.remove('hidden');
+                    conn.send({ type: 'GAMEOVER' }); // Avisa o celular que morreu
                     clearInterval(move);
                 }
-
                 if(pos > 850) { clearInterval(move); cactus.remove(); }
-            }, 20);
+            }, 25);
         }
 
         function setScreen(id) {
