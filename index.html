@@ -12,8 +12,8 @@
         .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; }
         .active { display: flex; }
         #dino-box { position: relative; width: 800px; height: 200px; border-bottom: 4px solid #334155; overflow: hidden; background: #f8fafc; }
-        #dino { position: absolute; bottom: 0; left: 50px; font-size: 40px; transition: bottom 0.25s; color: #1e293b; }
-        .cactus { position: absolute; bottom: 0; right: -50px; font-size: 30px; color: #16a34a; }
+        #dino { position: absolute; bottom: 0; left: 50px; font-size: 40px; transition: bottom 0.25s; color: #1e293b; z-index: 10; }
+        .cactus { position: absolute; bottom: 0; right: -50px; font-size: 30px; color: #16a34a; z-index: 5; }
     </style>
 </head>
 <body>
@@ -25,11 +25,9 @@
 
     <div id="scr-hub" class="screen bg-slate-900">
         <h2 class="text-3xl font-black mb-16 uppercase italic">Menu de Jogos</h2>
-        <div class="flex space-x-10">
-            <div id="g-0" class="game-card bg-slate-800 p-10 rounded-[2.5rem] text-center w-64 border-4 border-amber-500">
-                <i class="fas fa-dragon text-6xl text-green-500 mb-4"></i>
-                <h3 class="font-black">DINO RUN</h3>
-            </div>
+        <div class="game-card bg-slate-800 p-10 rounded-[2.5rem] border-4 border-amber-500">
+            <i class="fas fa-dragon text-6xl text-green-500 mb-4"></i>
+            <h3 class="font-black">DINO RUN</h3>
         </div>
     </div>
 
@@ -37,6 +35,7 @@
         <div class="absolute top-10 right-10 text-3xl font-black text-slate-900">SCORE: <span id="score">0</span></div>
         <div id="dino-box">
             <div id="dino"><i class="fas fa-dragon"></i></div>
+            <div id="cactus-layer"></div>
         </div>
     </div>
 
@@ -55,8 +54,15 @@
             });
         });
 
+        function clearObstacles() {
+            document.getElementById('cactus-layer').innerHTML = '';
+        }
+
         function startGame() {
-            score = 0; document.getElementById('score').innerText = '0';
+            gameActive = false; // Para qualquer loop anterior
+            clearObstacles(); 
+            score = 0; 
+            document.getElementById('score').innerText = '0';
             setScreen('scr-dino');
             gameActive = true;
             conn.send({ type: 'INIT_GAME', game: 'DINO' });
@@ -65,6 +71,7 @@
 
         function backToMenu() {
             gameActive = false;
+            clearObstacles();
             setScreen('scr-hub');
             conn.send({ type: 'INIT_GAME', game: 'HUB' });
         }
@@ -78,9 +85,10 @@
         }
 
         function startDinoLoop() {
-            const loop = setInterval(() => {
-                if(!gameActive) { clearInterval(loop); return; }
-                score++; document.getElementById('score').innerText = score;
+            const spawnTimer = setInterval(() => {
+                if(!gameActive) { clearInterval(spawnTimer); return; }
+                score++; 
+                document.getElementById('score').innerText = score;
                 spawnCactus();
             }, 1800);
         }
@@ -89,21 +97,33 @@
             const cactus = document.createElement('div');
             cactus.className = 'cactus';
             cactus.innerHTML = '<i class="fas fa-seedling"></i>';
-            document.getElementById('dino-box').appendChild(cactus);
+            document.getElementById('cactus-layer').appendChild(cactus);
+            
             let pos = -50;
             const move = setInterval(() => {
-                if(!gameActive) { clearInterval(move); cactus.remove(); return; }
-                pos += 10; cactus.style.right = pos + 'px';
+                if(!gameActive) { 
+                    clearInterval(move); 
+                    return; 
+                }
+                
+                pos += 10; 
+                cactus.style.right = pos + 'px';
                 
                 const dRect = document.getElementById('dino').getBoundingClientRect();
                 const cRect = cactus.getBoundingClientRect();
 
-                if (dRect.right > cRect.left && dRect.left < cRect.right && dRect.bottom > cRect.top) {
+                // Colisão com margem de segurança
+                if (dRect.right - 10 > cRect.left && dRect.left + 10 < cRect.right && dRect.bottom > cRect.top + 5) {
                     gameActive = false;
-                    conn.send({ type: 'GAMEOVER' }); // Avisa o celular que morreu
+                    conn.send({ type: 'GAMEOVER' });
+                    clearObstacles(); // LIMPA TUDO AO MORRER
                     clearInterval(move);
                 }
-                if(pos > 850) { clearInterval(move); cactus.remove(); }
+
+                if(pos > 850) { 
+                    clearInterval(move); 
+                    cactus.remove(); 
+                }
             }, 25);
         }
 
