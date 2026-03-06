@@ -2,64 +2,50 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Console Hub - TV</title>
+    <title>Console Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        .selected { border-color: #38bdf8; transform: scale(1.1); box-shadow: 0 0 30px #38bdf844; }
-        #game-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: black; display: none; }
+        .selected { border-color: #38bdf8; transform: scale(1.1); box-shadow: 0 0 30px #38bdf844; z-index: 10; }
+        #game-container { position: fixed; inset: 0; z-index: 100; background: black; display: none; }
         iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-center overflow-hidden m-0">
-
-    <div id="game-container">
-        <iframe id="game-frame" src=""></iframe>
-    </div>
-
-    <div id="loading" class="text-sky-500 font-bold animate-pulse uppercase">Aguardando Controle...</div>
-
+    <div id="game-container"><iframe id="game-frame" src=""></iframe></div>
+    <div id="loading" class="text-sky-500 font-bold animate-pulse uppercase tracking-widest">Aguardando Controle...</div>
     <div id="hub" class="hidden flex flex-col items-center w-full">
-        <h1 class="text-4xl font-black mb-10 italic uppercase">GAME <span class="text-sky-500">HUB</span></h1>
-        <div class="grid grid-cols-5 gap-5 p-4" id="grid"></div>
+        <h1 class="text-4xl font-black mb-10 italic uppercase tracking-tighter">My <span class="text-sky-500">Console</span></h1>
+        <div class="grid grid-cols-5 gap-6 p-4" id="grid"></div>
     </div>
 
     <script>
-        const ROOM_ID = "MINHA_SALA_SECRETA_001"; 
+        const ROOM_ID = "SALA_DO_MEU_GAME_001"; // DEVE SER IGUAL NO MOBILE.HTML
         const grid = document.getElementById('grid');
         const gameContainer = document.getElementById('game-container');
         const gameFrame = document.getElementById('game-frame');
         let currentIdx = 0;
 
-        // Criar os 10 quadrados do menu
         for (let i = 0; i < 10; i++) {
             const div = document.createElement('div');
-            div.className = `w-32 h-32 bg-slate-900 border-4 border-slate-800 rounded-[2rem] flex items-center justify-center text-4xl font-black transition-all ${i===0?'selected':''}`;
+            div.className = `w-32 h-32 md:w-40 md:h-40 bg-slate-900 border-4 border-slate-800 rounded-[2rem] flex items-center justify-center text-4xl font-black transition-all ${i===0?'selected':''}`;
             div.innerHTML = `<span class="${i===0?'text-sky-500':'text-slate-700'}">${i+1}</span>`;
             grid.appendChild(div);
         }
 
         const peer = new Peer(ROOM_ID);
         peer.on('connection', (conn) => {
-            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('loading').style.display = 'none';
             document.getElementById('hub').classList.remove('hidden');
-
             conn.on('data', (data) => {
-                // VERIFICA SE O JOGO ESTÁ ABERTO
+                if (data === 'BACK') {
+                    gameContainer.style.display = 'none';
+                    gameFrame.src = "";
+                    return;
+                }
                 if (gameContainer.style.display === 'block') {
-                    
-                    // SE APERTAR "SAIR" NO CELULAR
-                    if (data === 'BACK') { 
-                        gameContainer.style.display = 'none';
-                        gameFrame.src = "";
-                        return;
-                    }
-
-                    // IMPORTANTE: REPASSA O COMANDO (U, START, etc) PARA DENTRO DO JOGO
                     gameFrame.contentWindow.postMessage(data, '*');
-
                 } else {
-                    // SE O JOGO ESTIVER FECHADO, NAVEGA NO MENU
                     if (data === 'R' && currentIdx !== 4 && currentIdx !== 9) currentIdx++;
                     else if (data === 'L' && currentIdx !== 0 && currentIdx !== 5) currentIdx--;
                     else if (data === 'D' && currentIdx < 5) currentIdx += 5;
@@ -68,12 +54,12 @@
                         gameFrame.src = `jogo${currentIdx + 1}.html`;
                         gameContainer.style.display = 'block';
                     }
-                    updateMenu();
+                    update();
                 }
             });
         });
 
-        function updateMenu() {
+        function update() {
             document.querySelectorAll('#grid > div').forEach((card, i) => {
                 card.classList.toggle('selected', i === currentIdx);
                 card.querySelector('span').className = i === currentIdx ? 'text-sky-500' : 'text-slate-700';
