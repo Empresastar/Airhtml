@@ -2,66 +2,21 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Console Hub - TV</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirConsole P2P</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        body { background-color: #020617; color: white; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0; }
-        .game-grid { display: grid; grid-template-columns: repeat(5, 2fr); gap: 20px; }
-        .card { 
-            width: 150px; height: 150px; background: #0f172a; border: 4px solid #1e293b; border-radius: 20px; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-        .selected { border-color: #38bdf8; transform: scale(1.1); background: #1e293b; box-shadow: 0 0 30px #38bdf844; }
-        .card span { font-size: 3rem; font-weight: 900; color: #334155; }
-        .selected span { color: #38bdf8; }
-    </style>
 </head>
-<body>
-    <div id="loading" class="text-sky-500 font-bold animate-pulse uppercase tracking-widest">Aguardando Controle...</div>
-
-    <div id="hub" class="hidden flex flex-col items-center">
-        <h1 class="text-4xl font-black mb-10 italic">GAME <span class="text-sky-500">HUB</span></h1>
-        <div class="game-grid" id="grid"></div>
+<body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-center p-6">
+    <h1 class="text-4xl font-black mb-10 italic tracking-tighter text-sky-500 uppercase">AirConsole</h1>
+    <div class="flex flex-col md:flex-row gap-6">
+        <button onclick="window.location.href='console.html'" class="p-8 bg-slate-900 border-2 border-slate-800 rounded-[2rem] hover:border-sky-500 transition-all">
+            <div class="text-4xl mb-2">📺</div>
+            <div class="font-bold">MODO TV / PC</div>
+        </button>
+        <button onclick="window.location.href='mobile.html'" class="p-8 bg-slate-900 border-2 border-slate-800 rounded-[2rem] hover:border-sky-500 transition-all">
+            <div class="text-4xl mb-2">📱</div>
+            <div class="font-bold">MODO CONTROLE</div>
+        </button>
     </div>
-
-    <script>
-        const ROOM_ID = "MEU_CONSOLE_P2P_001";
-        const gridElement = document.getElementById('grid');
-        let currentIdx = 0;
-
-        for (let i = 0; i < 10; i++) {
-            const div = document.createElement('div');
-            div.id = `num-${i}`;
-            div.className = `card ${i === 0 ? 'selected' : ''}`;
-            div.innerHTML = `<span>${i + 1}</span>`;
-            gridElement.appendChild(div);
-        }
-
-        const peer = new Peer(ROOM_ID);
-        peer.on('connection', (conn) => {
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('hub').classList.remove('hidden');
-
-            conn.on('data', (data) => {
-                if (data === 'R' && currentIdx !== 4 && currentIdx !== 9) currentIdx++;
-                else if (data === 'L' && currentIdx !== 0 && currentIdx !== 5) currentIdx--;
-                else if (data === 'D' && currentIdx < 5) currentIdx += 5;
-                else if (data === 'U' && currentIdx >= 5) currentIdx -= 5;
-                else if (data === 'START') {
-                    // Redireciona para o arquivo HTML do jogo correspondente
-                    window.location.href = `jogo${currentIdx + 1}.html`;
-                }
-                updateScreen();
-            });
-        });
-
-        function updateScreen() {
-            document.querySelectorAll('.card').forEach((card, idx) => {
-                card.classList.toggle('selected', idx === currentIdx);
-            });
-        }
-    </script>
 </body>
 </html>
