@@ -1,26 +1,27 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Alien Escape: jogo1</title>
+    <title>Alien Escape: Auto-Start</title>
     <style>
         :root { --bg: #0f0524; --primary: #a2ff00; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: sans-serif; }
-        #game-container { position: relative; width: 100%; max-width: 800px; aspect-ratio: 16/9; background: black; border-radius: 12px; overflow: hidden; }
+        #game-container { position: relative; width: 100%; max-width: 800px; aspect-ratio: 16/9; background: black; border-radius: 12px; overflow: hidden; border: 2px solid #3d1a6d; }
         canvas { width: 100%; height: 100%; display: block; }
-        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 20; }
-        .btn { padding: 15px 30px; background: var(--primary); color: black; font-weight: bold; border-radius: 50px; border: none; margin-top: 10px; }
+        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 20; }
+        .hud { position: absolute; top: 20px; left: 20px; color: var(--primary); font-size: 24px; font-weight: bold; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
+    <div class="hud" id="score">DNA: 0</div>
     <canvas id="gameCanvas"></canvas>
     <div id="overlay">
-        <h1 id="msg">PLANET ESCAPE</h1>
-        <button class="btn">APERTE CONFIRMAR NO CELULAR</button>
+        <h1 id="msg">CAPTURADO!</h1>
+        <p style="color: #a2ff00; margin-top: 10px;">Aperte CONFIRMAR para reiniciar</p>
     </div>
 </div>
 
@@ -28,6 +29,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const overlay = document.getElementById('overlay');
+    const scoreEl = document.getElementById('score');
     canvas.width = 1280; canvas.height = 720;
 
     let isPlaying = false;
@@ -37,17 +39,19 @@
     const player = { x: 150, y: 500, w: 70, h: 90, dy: 0, gravity: 1.5, jumpForce: 32, onGround: false };
 
     // ==========================================
-    // ESCUTA O CONTROLE (O SEGREDO ESTÁ AQUI)
+    // RECEPTOR DE COMANDOS DO CELULAR
     // ==========================================
     window.addEventListener('message', (event) => {
-        console.log("Comando recebido no jogo:", event.data); // Para teste
+        const cmd = event.data;
         
-        if (event.data === 'START') {
-            if (!isPlaying) startGame();
+        // Se receber pulo (U) e estiver jogando, pula
+        if (cmd === 'U' && isPlaying) {
+            jump();
         }
         
-        if (event.data === 'U') {
-            if (isPlaying) jump();
+        // Se receber START e estiver no Game Over, reinicia
+        if (cmd === 'START' && !isPlaying) {
+            startGame();
         }
     });
 
@@ -64,7 +68,8 @@
         obstacles = [];
         isPlaying = true;
         overlay.style.display = 'none';
-        requestAnimationFrame(update);
+        scoreEl.innerText = "DNA: 0";
+        update(); // Inicia o loop
     }
 
     function gameOver() {
@@ -76,28 +81,27 @@
     function update() {
         if (!isPlaying) return;
 
-        // Gravidade
         player.dy += player.gravity;
         player.y += player.dy;
 
-        if (player.y > 600 - player.h) {
-            player.y = 600 - player.h;
+        const groundY = 600;
+        if (player.y > groundY - player.h) {
+            player.y = groundY - player.h;
             player.dy = 0;
             player.onGround = true;
         }
 
-        // Spawn
-        if (Math.random() < 0.02) {
-            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < 900) {
-                obstacles.push({ x: 1300, y: 520, w: 60, h: 80 });
+        // Dificuldade e Spawn
+        if (Math.random() < 0.015) {
+            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < 850) {
+                obstacles.push({ x: 1300, y: groundY - 80, w: 60, h: 80 });
             }
         }
 
-        // Movimento obstáculos
         obstacles.forEach((obs, i) => {
             obs.x -= speed;
             
-            // Colisão
+            // Colisão simplificada
             if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
                 player.y < obs.y + obs.h && player.y + player.h > obs.y) {
                 gameOver();
@@ -106,6 +110,7 @@
             if (obs.x + obs.w < 0) {
                 obstacles.splice(i, 1);
                 score++;
+                scoreEl.innerText = "DNA: " + score;
                 speed += 0.1;
             }
         });
@@ -121,22 +126,35 @@
         // Chão
         ctx.fillStyle = "#1a0b3c";
         ctx.fillRect(0, 600, canvas.width, 120);
+        ctx.strokeStyle = "#3d1a6d";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(0, 600, canvas.width, 5);
 
-        // Player
+        // Player (Alien)
         ctx.fillStyle = "#a2ff00";
         ctx.fillRect(player.x, player.y, player.w, player.h);
+        
+        // Olhos do Alien
+        ctx.fillStyle = "black";
+        ctx.fillRect(player.x + 15, player.y + 20, 12, 18);
+        ctx.fillRect(player.x + 43, player.y + 20, 12, 18);
 
-        // Obstáculos
+        // Obstáculos (Cristais)
         ctx.fillStyle = "#ff00ff";
-        obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
-
-        // Score
-        ctx.fillStyle = "white";
-        ctx.font = "30px Arial";
-        ctx.fillText("DNA: " + score, 50, 50);
+        obstacles.forEach(obs => {
+            ctx.beginPath();
+            ctx.moveTo(obs.x, obs.y + obs.h);
+            ctx.lineTo(obs.x + obs.w/2, obs.y);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+            ctx.fill();
+        });
     }
 
-    draw(); // Mostra o frame inicial
+    // ==========================================
+    // O PULO DO GATO: INICIA SOZINHO ASSIM QUE ABRE
+    // ==========================================
+    startGame();
+
 </script>
 </body>
 </html>
