@@ -2,134 +2,65 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Spark Console | TV Hub</title>
+    <title>Console Hub - TV</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;900&display=swap');
-        body { background: #020617; color: white; font-family: 'Outfit', sans-serif; overflow: hidden; }
-        .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; }
-        .active { display: flex; }
-        #dino-box { position: relative; width: 800px; height: 200px; border-bottom: 4px solid #334155; overflow: hidden; background: #f8fafc; }
-        #dino { position: absolute; bottom: 0; left: 50px; font-size: 40px; transition: bottom 0.25s; color: #1e293b; z-index: 10; }
-        .cactus { position: absolute; bottom: 0; right: -50px; font-size: 30px; color: #16a34a; z-index: 5; }
+        body { background-color: #020617; color: white; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0; }
+        .game-grid { display: grid; grid-template-columns: repeat(5, 2fr); gap: 20px; }
+        .card { 
+            width: 150px; height: 150px; background: #0f172a; border: 4px solid #1e293b; border-radius: 20px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .selected { border-color: #38bdf8; transform: scale(1.1); background: #1e293b; box-shadow: 0 0 30px #38bdf844; }
+        .card span { font-size: 3rem; font-weight: 900; color: #334155; }
+        .selected span { color: #38bdf8; }
     </style>
 </head>
 <body>
+    <div id="loading" class="text-sky-500 font-bold animate-pulse uppercase tracking-widest">Aguardando Controle...</div>
 
-    <div id="scr-login" class="screen active">
-        <h1 class="text-5xl font-black text-amber-500 mb-8 italic">SPARK CONSOLE</h1>
-        <div id="pin-display" class="text-7xl font-black text-white bg-slate-900 p-8 rounded-3xl border-2 border-slate-700">----</div>
-    </div>
-
-    <div id="scr-hub" class="screen bg-slate-900">
-        <h2 class="text-3xl font-black mb-16 uppercase italic">Menu de Jogos</h2>
-        <div class="game-card bg-slate-800 p-10 rounded-[2.5rem] border-4 border-amber-500">
-            <i class="fas fa-dragon text-6xl text-green-500 mb-4"></i>
-            <h3 class="font-black">DINO RUN</h3>
-        </div>
-    </div>
-
-    <div id="scr-dino" class="screen bg-white">
-        <div class="absolute top-10 right-10 text-3xl font-black text-slate-900">SCORE: <span id="score">0</span></div>
-        <div id="dino-box">
-            <div id="dino"><i class="fas fa-dragon"></i></div>
-            <div id="cactus-layer"></div>
-        </div>
+    <div id="hub" class="hidden flex flex-col items-center">
+        <h1 class="text-4xl font-black mb-10 italic">GAME <span class="text-sky-500">HUB</span></h1>
+        <div class="game-grid" id="grid"></div>
     </div>
 
     <script>
-        const pin = Math.floor(1000 + Math.random() * 9000).toString();
-        const peer = new Peer('spark-hub-' + pin);
-        let conn, score = 0, gameActive = false, isJumping = false;
+        const ROOM_ID = "MEU_CONSOLE_P2P_001";
+        const gridElement = document.getElementById('grid');
+        let currentIdx = 0;
 
-        peer.on('open', () => document.getElementById('pin-display').innerText = pin);
-        peer.on('connection', c => {
-            conn = c; setScreen('scr-hub');
-            conn.on('data', data => {
-                if(data.type === 'START') startGame();
-                if(data.type === 'BACK') backToMenu();
-                if(data.type === 'ACTION' && data.cmd === 'jump') jump();
+        for (let i = 0; i < 10; i++) {
+            const div = document.createElement('div');
+            div.id = `num-${i}`;
+            div.className = `card ${i === 0 ? 'selected' : ''}`;
+            div.innerHTML = `<span>${i + 1}</span>`;
+            gridElement.appendChild(div);
+        }
+
+        const peer = new Peer(ROOM_ID);
+        peer.on('connection', (conn) => {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('hub').classList.remove('hidden');
+
+            conn.on('data', (data) => {
+                if (data === 'R' && currentIdx !== 4 && currentIdx !== 9) currentIdx++;
+                else if (data === 'L' && currentIdx !== 0 && currentIdx !== 5) currentIdx--;
+                else if (data === 'D' && currentIdx < 5) currentIdx += 5;
+                else if (data === 'U' && currentIdx >= 5) currentIdx -= 5;
+                else if (data === 'START') {
+                    // Redireciona para o arquivo HTML do jogo correspondente
+                    window.location.href = `jogo${currentIdx + 1}.html`;
+                }
+                updateScreen();
             });
         });
 
-        function clearObstacles() {
-            document.getElementById('cactus-layer').innerHTML = '';
-        }
-
-        function startGame() {
-            gameActive = false; // Para qualquer loop anterior
-            clearObstacles(); 
-            score = 0; 
-            document.getElementById('score').innerText = '0';
-            setScreen('scr-dino');
-            gameActive = true;
-            conn.send({ type: 'INIT_GAME', game: 'DINO' });
-            startDinoLoop();
-        }
-
-        function backToMenu() {
-            gameActive = false;
-            clearObstacles();
-            setScreen('scr-hub');
-            conn.send({ type: 'INIT_GAME', game: 'HUB' });
-        }
-
-        function jump() {
-            if(isJumping || !gameActive) return;
-            isJumping = true;
-            const d = document.getElementById('dino');
-            d.style.bottom = '120px';
-            setTimeout(() => { d.style.bottom = '0px'; isJumping = false; }, 400);
-        }
-
-        function startDinoLoop() {
-            const spawnTimer = setInterval(() => {
-                if(!gameActive) { clearInterval(spawnTimer); return; }
-                score++; 
-                document.getElementById('score').innerText = score;
-                spawnCactus();
-            }, 1800);
-        }
-
-        function spawnCactus() {
-            const cactus = document.createElement('div');
-            cactus.className = 'cactus';
-            cactus.innerHTML = '<i class="fas fa-seedling"></i>';
-            document.getElementById('cactus-layer').appendChild(cactus);
-            
-            let pos = -50;
-            const move = setInterval(() => {
-                if(!gameActive) { 
-                    clearInterval(move); 
-                    return; 
-                }
-                
-                pos += 10; 
-                cactus.style.right = pos + 'px';
-                
-                const dRect = document.getElementById('dino').getBoundingClientRect();
-                const cRect = cactus.getBoundingClientRect();
-
-                // Colisão com margem de segurança
-                if (dRect.right - 10 > cRect.left && dRect.left + 10 < cRect.right && dRect.bottom > cRect.top + 5) {
-                    gameActive = false;
-                    conn.send({ type: 'GAMEOVER' });
-                    clearObstacles(); // LIMPA TUDO AO MORRER
-                    clearInterval(move);
-                }
-
-                if(pos > 850) { 
-                    clearInterval(move); 
-                    cactus.remove(); 
-                }
-            }, 25);
-        }
-
-        function setScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+        function updateScreen() {
+            document.querySelectorAll('.card').forEach((card, idx) => {
+                card.classList.toggle('selected', idx === currentIdx);
+            });
         }
     </script>
 </body>
