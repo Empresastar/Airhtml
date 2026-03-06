@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Console Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        .selected { border-color: #38bdf8; transform: scale(1.1); box-shadow: 0 0 30px #38bdf844; z-index: 10; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-center overflow-hidden m-0">
+    <div id="loading" class="text-sky-500 font-bold animate-pulse">AGUARDANDO CONTROLE...</div>
+    <div id="hub" class="hidden flex flex-col items-center w-full">
+        <h1 class="text-4xl font-black mb-10 italic">GAME <span class="text-sky-500">HUB</span></h1>
+        <div class="grid grid-cols-5 gap-5 p-4" id="grid"></div>
+    </div>
+    <script>
+        const ROOM_ID = "MINHA_SALA_SECRETA_001";
+        const grid = document.getElementById('grid');
+        let currentIdx = 0;
+        for (let i = 0; i < 10; i++) {
+            const div = document.createElement('div');
+            div.id = `g-${i}`;
+            div.className = `w-32 h-32 md:w-40 md:h-40 bg-slate-900 border-4 border-slate-800 rounded-[2rem] flex items-center justify-center text-4xl font-black transition-all ${i===0?'selected':''}`;
+            div.innerHTML = `<span class="${i===0?'text-sky-500':'text-slate-700'}">${i+1}</span>`;
+            grid.appendChild(div);
+        }
+        const peer = new Peer(ROOM_ID);
+        peer.on('connection', (conn) => {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('hub').classList.remove('hidden');
+            conn.on('data', (data) => {
+                if (data === 'R' && currentIdx !== 4 && currentIdx !== 9) currentIdx++;
+                else if (data === 'L' && currentIdx !== 0 && currentIdx !== 5) currentIdx--;
+                else if (data === 'D' && currentIdx < 5) currentIdx += 5;
+                else if (data === 'U' && currentIdx >= 5) currentIdx -= 5;
+                else if (data === 'START') window.location.href = `jogo${currentIdx + 1}.html`;
+                update();
+            });
+        });
+        function update() {
+            document.querySelectorAll('#grid > div').forEach((card, i) => {
+                card.classList.toggle('selected', i === currentIdx);
+                card.querySelector('span').className = i === currentIdx ? 'text-sky-500' : 'text-slate-700';
+            });
+        }
+    </script>
+</body>
+</html>
