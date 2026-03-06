@@ -1,3 +1,238 @@
-<button onpointerdown="send('BACK')" class="mt-4 text-red-500 font-bold text-xs uppercase tracking-widest">
-    Sair do Jogo
-</button>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alien Escape: Planet X</title>
+    <style>
+        :root { --bg: #0f0524; --primary: #a2ff00; --accent: #ff00ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; user-select: none; }
+        body { background-color: var(--bg); overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #game-container { position: relative; width: 100%; max-width: 800px; aspect-ratio: 16 / 9; background: radial-gradient(circle, #1a0b3c 0%, #05020a 100%); border: 3px solid #3d1a6d; overflow: hidden; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        canvas { width: 100%; height: 100%; display: block; }
+        .hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; color: var(--primary); font-weight: bold; font-size: clamp(14px, 4vw, 22px); pointer-events: none; text-shadow: 0 0 8px rgba(162, 255, 0, 0.4); }
+        #overlay { position: absolute; inset: 0; background: rgba(10, 2, 25, 0.85); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; }
+        .btn-start { padding: 16px 48px; font-size: 1.4rem; background: var(--primary); color: #05020a; border: none; cursor: pointer; font-weight: 900; border-radius: 50px; margin-top: 20px; box-shadow: 0 0 20px rgba(162, 255, 0, 0.4); transition: 0.2s; }
+        .btn-start:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="hud">
+        <div id="score">DNA: 0</div>
+        <div id="hi-score">MAX: 0</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="overlay">
+        <h1 id="msg" style="color: var(--primary); font-size: 3rem; margin-bottom: 0;">PLANET ESCAPE</h1>
+        <p style="color: #8c74b5;">Desvie dos perigos de Kepler-186f</p>
+        <button id="startBtn" class="btn-start" onclick="startGame()">DECOLAR</button>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // SISTEMA DE ESCUTA DO CONTROLE (P2P)
+    // ==========================================
+    window.addEventListener('message', (event) => {
+        const cmd = event.data;
+        
+        // Se receber UP (seta cima) ou START (botão confirmar)
+        if (cmd === 'U' || cmd === 'START') {
+            if (!isPlaying) {
+                startGame(); // Se estiver no menu, começa o jogo
+            } else {
+                jump(); // Se estiver jogando, pula
+            }
+        }
+    });
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const hiScoreEl = document.getElementById('hi-score');
+    const overlay = document.getElementById('overlay');
+
+    canvas.width = 1280;
+    canvas.height = 720;
+
+    let score = 0, hiScore = 0, isPlaying = false, speed = 14, gameFrame = 0;
+    let obstacles = [], particles = [], stars = [];
+
+    const player = {
+        x: 180, y: 500, w: 75, h: 95,
+        dy: 0, jumpForce: 30, gravity: 1.5,
+        onGround: false
+    };
+
+    for(let i=0; i<50; i++) {
+        stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*3 });
+    }
+
+    function createExplosion(x, y, color) {
+        for(let i=0; i<12; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                life: 1.0,
+                color
+            });
+        }
+    }
+
+    function drawAlien() {
+        let bounce = isPlaying && player.onGround ? Math.sin(gameFrame * 0.25) * 6 : 0;
+        let x = player.x;
+        let y = player.y + bounce;
+        ctx.save();
+        if(!player.onGround) {
+            ctx.translate(x + 37, y + 47);
+            ctx.rotate(player.dy * 0.015);
+            ctx.translate(-(x + 37), -(y + 47));
+        }
+        ctx.fillStyle = '#a2ff00';
+        ctx.beginPath();
+        ctx.ellipse(x + 37, y + 25, 32, 38, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(x + 22, y + 50, 30, 35);
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.ellipse(x + 24, y + 25, 11, 16, Math.PI / 4, 0, Math.PI * 2);
+        ctx.ellipse(x + 50, y + 25, 11, 16, -Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#a2ff00';
+        ctx.lineWidth = 3;
+        let ant = Math.sin(gameFrame * 0.2) * 12;
+        ctx.beginPath();
+        ctx.moveTo(x + 20, y + 5); ctx.lineTo(x + 8 + ant, y - 12);
+        ctx.moveTo(x + 54, y + 5); ctx.lineTo(x + 66 + ant, y - 12);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawObstacle(obs) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = obs.type === 'bot' ? '#00e5ff' : '#ff00ff';
+        if(obs.type === 'crystal') {
+            ctx.fillStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.moveTo(obs.x, obs.y + obs.h);
+            ctx.lineTo(obs.x + obs.w/2, obs.y);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+            ctx.fill();
+        } else if(obs.type === 'bot') {
+            let float = Math.sin(gameFrame * 0.1) * 10;
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillRect(obs.x, obs.y + float, obs.w, obs.h/2);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(obs.x + 10, obs.y + float + 10, 10, 5);
+        } else {
+            ctx.fillStyle = '#3d1a6d';
+            ctx.beginPath();
+            ctx.moveTo(obs.x, obs.y + obs.h);
+            ctx.lineTo(obs.x + 10, obs.y);
+            ctx.lineTo(obs.x + obs.w - 10, obs.y);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+            ctx.fill();
+            ctx.fillStyle = '#a2ff00';
+            ctx.fillRect(obs.x + 12, obs.y, obs.w - 24, 5);
+        }
+        ctx.shadowBlur = 0;
+    }
+
+    function update() {
+        if (!isPlaying) return;
+        gameFrame++;
+        player.dy += player.gravity;
+        player.y += player.dy;
+        const groundY = canvas.height - 120;
+        if (player.y > groundY - player.h) {
+            player.y = groundY - player.h;
+            player.dy = 0;
+            player.onGround = true;
+        }
+        if (gameFrame % Math.max(40, Math.floor(85 - speed/1.5)) === 0) {
+            const types = ['crystal', 'bot', 'volcano'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            obstacles.push({
+                x: canvas.width,
+                y: type === 'bot' ? groundY - 180 : groundY - 100,
+                w: type === 'volcano' ? 80 : 50,
+                h: type === 'bot' ? 40 : 100,
+                type: type
+            });
+        }
+        obstacles.forEach((obs, i) => {
+            obs.x -= speed;
+            if (player.x + 15 < obs.x + obs.w && player.x + player.w - 15 > obs.x &&
+                player.y + 10 < obs.y + obs.h && player.y + player.h - 10 > obs.y) {
+                createExplosion(player.x + 35, player.y + 45, '#ff00ff');
+                gameOver();
+            }
+            if (obs.x + obs.w < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                scoreEl.innerText = `DNA: ${score}`;
+                speed += 0.15;
+            }
+        });
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+            if(p.life <= 0) particles.splice(i, 1);
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        stars.forEach(s => ctx.fillRect(s.x, s.y, s.s, s.s));
+        ctx.fillStyle = '#1a0b3c';
+        ctx.fillRect(0, canvas.height - 120, canvas.width, 120);
+        ctx.strokeStyle = '#3d1a6d';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height - 118); ctx.lineTo(canvas.width, canvas.height - 118);
+        ctx.stroke();
+        obstacles.forEach(drawObstacle);
+        particles.forEach(p => {
+            ctx.fillStyle = `rgba(${p.color === '#ff00ff' ? '255,0,255' : '162,255,0'}, ${p.life})`;
+            ctx.fillRect(p.x, p.y, 8, 8);
+        });
+        drawAlien();
+    }
+
+    function jump() {
+        if (player.onGround && isPlaying) {
+            player.dy = -player.jumpForce;
+            player.onGround = false;
+            createExplosion(player.x + 37, player.y + 90, '#a2ff00');
+        }
+    }
+
+    function startGame() {
+        score = 0; speed = 14; obstacles = []; particles = [];
+        isPlaying = true; overlay.style.display = 'none';
+        scoreEl.innerText = `DNA: ${score}`;
+        loop();
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        overlay.style.display = 'flex';
+        document.getElementById('msg').innerText = "CAPTURADO!";
+        if (score > hiScore) { hiScore = score; hiScoreEl.innerText = `MAX: ${hiScore}`; }
+    }
+
+    function loop() {
+        update(); draw();
+        if(isPlaying) requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); });
+    draw();
+</script>
+</body>
+    </html>
+    
