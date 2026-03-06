@@ -8,23 +8,26 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style> * { touch-action: none; user-select: none; } </style>
 </head>
-<body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-around py-10">
-    <div id="status" class="text-sky-500 font-bold text-xs animate-pulse">CONECTANDO...</div>
+<body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-around py-6 font-sans">
+    <div id="status" class="text-sky-500 font-bold text-[10px] animate-pulse">CONECTANDO...</div>
     <div class="grid grid-cols-3 gap-4">
         <div></div><button onpointerdown="send('U')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">↑</button><div></div>
         <button onpointerdown="send('L')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">←</button>
-        <div class="flex items-center justify-center text-slate-800 font-black">P2P</div>
+        <div class="flex items-center justify-center font-black text-slate-800 italic">P2P</div>
         <button onpointerdown="send('R')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">→</button>
         <div></div><button onpointerdown="send('D')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">↓</button><div></div>
     </div>
-    <button onpointerdown="send('START')" class="w-4/5 py-6 bg-sky-600 rounded-[2rem] font-black text-xl shadow-lg active:scale-95">CONFIRMAR</button>
+    <div class="w-full flex flex-col items-center gap-4">
+        <button onpointerdown="send('START')" class="w-4/5 py-6 bg-sky-600 rounded-[2rem] font-black text-xl active:bg-sky-400">CONFIRMAR</button>
+        <button onpointerdown="send('BACK')" class="w-4/5 py-4 bg-red-600/20 text-red-500 border-2 border-red-600/30 rounded-[2rem] font-bold text-xs uppercase tracking-widest active:bg-red-600 active:text-white">Voltar ao Menu</button>
+    </div>
     <script>
         const peer = new Peer(); let conn;
         peer.on('open', () => {
-            conn = peer.connect('MINHA_SALA_SECRETA_001');
-            conn.on('open', () => { document.getElementById('status').innerText = "ONLINE"; });
+            conn = peer.connect('SALA_DO_MEU_GAME_001');
+            conn.on('open', () => { document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').classList.remove('animate-pulse'); });
         });
-        function send(c) { if(conn && conn.open) { conn.send(c); if(navigator.vibrate) navigator.vibrate(40); } }
+        function send(c) { if(conn && conn.open) { conn.send(c); if(navigator.vibrate) navigator.vibrate(50); } }
     </script>
 </body>
 </html>
