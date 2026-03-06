@@ -1,76 +1,55 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Alien Escape: jogo1</title>
     <style>
-        :root { --bg: #0f0524; --primary: #a2ff00; --accent: #ff00ff; }
-        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; user-select: none; }
-        body { background-color: var(--bg); overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
-        #game-container { position: relative; width: 100%; max-width: 800px; aspect-ratio: 16 / 9; background: radial-gradient(circle, #1a0b3c 0%, #05020a 100%); border: 3px solid #3d1a6d; overflow: hidden; border-radius: 12px; }
+        :root { --bg: #0f0524; --primary: #a2ff00; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: sans-serif; }
+        #game-container { position: relative; width: 100%; max-width: 800px; aspect-ratio: 16/9; background: black; border-radius: 12px; overflow: hidden; }
         canvas { width: 100%; height: 100%; display: block; }
-        .hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; color: var(--primary); font-weight: bold; font-size: 20px; pointer-events: none; }
-        #overlay { position: absolute; inset: 0; background: rgba(10, 2, 25, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 10; }
-        .btn-start { padding: 16px 48px; font-size: 1.4rem; background: var(--primary); color: #05020a; border: none; cursor: pointer; font-weight: 900; border-radius: 50px; margin-top: 20px; box-shadow: 0 0 20px rgba(162, 255, 0, 0.4); }
+        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 20; }
+        .btn { padding: 15px 30px; background: var(--primary); color: black; font-weight: bold; border-radius: 50px; border: none; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div class="hud">
-        <div id="score">DNA: 0</div>
-        <div id="hi-score">MAX: 0</div>
-    </div>
     <canvas id="gameCanvas"></canvas>
     <div id="overlay">
-        <h1 id="msg" style="color: var(--primary); font-size: 3rem; margin-bottom: 0;">PLANET ESCAPE</h1>
-        <p style="color: #8c74b5;">Desvie dos cristais e sondas</p>
-        <button class="btn-start">APERTE CONFIRMAR</button>
+        <h1 id="msg">PLANET ESCAPE</h1>
+        <button class="btn">APERTE CONFIRMAR NO CELULAR</button>
     </div>
 </div>
 
 <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    canvas.width = 1280; canvas.height = 720;
+
+    let isPlaying = false;
+    let score = 0;
+    let speed = 12;
+    let obstacles = [];
+    const player = { x: 150, y: 500, w: 70, h: 90, dy: 0, gravity: 1.5, jumpForce: 32, onGround: false };
+
     // ==========================================
-    // LOGICA DE COMANDO P2P (RECEBENDO DO CONSOLE)
+    // ESCUTA O CONTROLE (O SEGREDO ESTÁ AQUI)
     // ==========================================
     window.addEventListener('message', (event) => {
-        const cmd = event.data;
+        console.log("Comando recebido no jogo:", event.data); // Para teste
         
-        // CONFIRMAR (START) -> Inicia ou Reinicia o jogo
-        if (cmd === 'START') {
+        if (event.data === 'START') {
             if (!isPlaying) startGame();
         }
-
-        // SETA PARA CIMA (U) -> Pula durante a partida
-        if (cmd === 'U') {
+        
+        if (event.data === 'U') {
             if (isPlaying) jump();
         }
     });
-
-    // ==========================================
-    // MOTOR DO JOGO
-    // ==========================================
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
-    const hiScoreEl = document.getElementById('hi-score');
-    const overlay = document.getElementById('overlay');
-
-    canvas.width = 1280;
-    canvas.height = 720;
-
-    let score = 0, hiScore = 0, isPlaying = false, speed = 14, gameFrame = 0;
-    let obstacles = [], particles = [], stars = [];
-
-    const player = {
-        x: 180, y: 500, w: 75, h: 95,
-        dy: 0, jumpForce: 28, gravity: 1.4,
-        onGround: false
-    };
-
-    // Estrelas de fundo
-    for(let i=0; i<50; i++) stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*3 });
 
     function jump() {
         if (player.onGround) {
@@ -80,78 +59,84 @@
     }
 
     function startGame() {
-        score = 0; speed = 14; obstacles = []; particles = [];
-        isPlaying = true; overlay.style.display = 'none';
-        scoreEl.innerText = `DNA: ${score}`;
-        loop();
+        score = 0;
+        speed = 12;
+        obstacles = [];
+        isPlaying = true;
+        overlay.style.display = 'none';
+        requestAnimationFrame(update);
     }
 
     function gameOver() {
         isPlaying = false;
         overlay.style.display = 'flex';
-        document.getElementById('msg').innerText = "CAPTURADO!";
-        if (score > hiScore) { hiScore = score; hiScoreEl.innerText = `MAX: ${hiScore}`; }
+        document.getElementById('msg').innerText = "GAME OVER! DNA: " + score;
     }
 
     function update() {
         if (!isPlaying) return;
-        gameFrame++;
+
+        // Gravidade
         player.dy += player.gravity;
         player.y += player.dy;
 
-        const groundY = canvas.height - 120;
-        if (player.y > groundY - player.h) {
-            player.y = groundY - player.h;
+        if (player.y > 600 - player.h) {
+            player.y = 600 - player.h;
             player.dy = 0;
             player.onGround = true;
         }
 
-        // Spawn de obstáculos
-        if (gameFrame % 60 === 0) {
-            obstacles.push({ x: canvas.width, y: groundY - 80, w: 60, h: 80 });
+        // Spawn
+        if (Math.random() < 0.02) {
+            if (obstacles.length === 0 || obstacles[obstacles.length-1].x < 900) {
+                obstacles.push({ x: 1300, y: 520, w: 60, h: 80 });
+            }
         }
 
+        // Movimento obstáculos
         obstacles.forEach((obs, i) => {
             obs.x -= speed;
+            
+            // Colisão
             if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
                 player.y < obs.y + obs.h && player.y + player.h > obs.y) {
                 gameOver();
             }
+
             if (obs.x + obs.w < 0) {
                 obstacles.splice(i, 1);
                 score++;
-                scoreEl.innerText = `DNA: ${score}`;
                 speed += 0.1;
             }
         });
+
+        draw();
+        requestAnimationFrame(update);
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#0f0524";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Fundo e Chão
-        ctx.fillStyle = "white"; stars.forEach(s => ctx.fillRect(s.x, s.y, s.s, s.s));
-        ctx.fillStyle = '#1a0b3c'; ctx.fillRect(0, canvas.height - 120, canvas.width, 120);
+        // Chão
+        ctx.fillStyle = "#1a0b3c";
+        ctx.fillRect(0, 600, canvas.width, 120);
 
-        // Obstáculos (Cristais)
-        ctx.fillStyle = '#ff00ff';
+        // Player
+        ctx.fillStyle = "#a2ff00";
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+
+        // Obstáculos
+        ctx.fillStyle = "#ff00ff";
         obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
 
-        // Personagem (Alien Simples)
-        ctx.fillStyle = '#a2ff00';
-        ctx.fillRect(player.x, player.y, player.w, player.h);
-        ctx.fillStyle = 'black';
-        ctx.fillRect(player.x + 15, player.y + 20, 15, 20);
-        ctx.fillRect(player.x + 45, player.y + 20, 15, 20);
-
-        update();
-        if(isPlaying) requestAnimationFrame(draw);
+        // Score
+        ctx.fillStyle = "white";
+        ctx.font = "30px Arial";
+        ctx.fillText("DNA: " + score, 50, 50);
     }
 
-    function loop() { draw(); }
-    draw(); // Desenha tela inicial
+    draw(); // Mostra o frame inicial
 </script>
 </body>
 </html>
-
-    
