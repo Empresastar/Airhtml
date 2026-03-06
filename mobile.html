@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle P2P</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style> * { touch-action: none; user-select: none; } </style>
+</head>
+<body class="bg-slate-950 text-white h-screen flex flex-col items-center justify-around py-10">
+    <div id="status" class="text-sky-500 font-bold text-xs animate-pulse">CONECTANDO...</div>
+    <div class="grid grid-cols-3 gap-4">
+        <div></div><button onpointerdown="send('U')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">↑</button><div></div>
+        <button onpointerdown="send('L')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">←</button>
+        <div class="flex items-center justify-center text-slate-800 font-black">P2P</div>
+        <button onpointerdown="send('R')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">→</button>
+        <div></div><button onpointerdown="send('D')" class="w-24 h-24 bg-slate-900 rounded-3xl text-3xl active:bg-sky-500">↓</button><div></div>
+    </div>
+    <button onpointerdown="send('START')" class="w-4/5 py-6 bg-sky-600 rounded-[2rem] font-black text-xl shadow-lg active:scale-95">CONFIRMAR</button>
+    <script>
+        const peer = new Peer(); let conn;
+        peer.on('open', () => {
+            conn = peer.connect('MINHA_SALA_SECRETA_001');
+            conn.on('open', () => { document.getElementById('status').innerText = "ONLINE"; });
+        });
+        function send(c) { if(conn && conn.open) { conn.send(c); if(navigator.vibrate) navigator.vibrate(40); } }
+    </script>
+</body>
+</html>
