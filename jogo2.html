@@ -1,1 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Pluto TV - Console Mode</title>
+    <style>
+        body { margin: 0; background: black; overflow: hidden; font-family: sans-serif; }
+        .container { position: relative; width: 100vw; height: 100vh; }
+        /* O Iframe da Pluto TV ocupa a tela toda */
+        iframe { width: 100%; height: 100%; border: none; pointer-events: auto; }
+        
+        /* Uma pequena barra de aviso que some depois de 5 segundos */
+        #status-bar { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 115, 230, 0.8); color: white; padding: 10px 20px;
+            border-radius: 50px; font-weight: bold; z-index: 1000;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
 
+    <div id="status-bar">MODO TV ATIVADO: Use as setas do controle</div>
+
+    <div class="container">
+        <iframe 
+            id="pluto-player"
+            src="https://pluto.tv/pwa/brazil" 
+            allow="autoplay; fullscreen"
+            sandbox="allow-forms allow-scripts allow-pointer-lock allow-same-origin">
+        </iframe>
+    </div>
+
+    <script>
+        const player = document.getElementById('pluto-player');
+
+        // Sumir com a barra de status
+        setTimeout(() => { document.getElementById('status-bar').style.opacity = '0'; }, 5000);
+
+        // ==========================================
+        // SISTEMA DE CONTROLE REMOTO (P2P)
+        // ==========================================
+        window.addEventListener('message', (event) => {
+            const cmd = event.data;
+            console.log("Comando TV recebido:", cmd);
+
+            // Simulamos teclas de teclado reais dentro da página para o player da Pluto entender
+            const simularTecla = (keyCode, keyName) => {
+                window.dispatchEvent(new KeyboardEvent('keydown', {
+                    'keyCode': keyCode,
+                    'key': keyName,
+                    'bubbles': true
+                }));
+            };
+
+            if (cmd === 'U') simularTecla(38, 'ArrowUp');    // Seta Cima
+            if (cmd === 'D') simularTecla(40, 'ArrowDown');  // Seta Baixo
+            if (cmd === 'L') simularTecla(37, 'ArrowLeft');  // Seta Esquerda
+            if (cmd === 'R') simularTecla(39, 'ArrowRight'); // Seta Direita
+            if (cmd === 'START') simularTecla(13, 'Enter');  // Confirmar/OK
+        });
+
+        // Garantir foco no player
+        window.onclick = () => { player.focus(); };
+    </script>
+</body>
+</html>
